@@ -1,29 +1,29 @@
-# Use the official Node.js image to build the application
-FROM node:lts as build-stage
+# Stage 1: Build the Angular application
+FROM node:18-alpine as build
 
-# Create and set the working directory
+# Set the working directory
 WORKDIR /app
 
-# Copy the package.json and package-lock.json files
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies with --force flag to mitigate potential issues
-RUN npm install --force
+# Install dependencies and build the Angular application
+RUN npm install && npm run build
 
-# Copy the rest of the application code
-COPY . .
+# Stage 2: Serve the application with Node.js
+FROM node:18-alpine
 
-# Build the AngularJS application
-RUN npm run build
+# Set the working directory
+WORKDIR /app
 
-# Use the official Nginx image to serve the application
-FROM nginx:alpine
+# Copy the build output from the first stage
+COPY --from=build /app/dist /app/dist
 
-# Copy the built application from the build stage
-COPY --from=build-stage /app/dist/my-angular-project /usr/share/nginx/html
+# Install Angular Universal dependencies and production dependencies
+RUN npm install -g @nguniversal/express-engine && npm install --only=production
 
-# Expose port 80 to the outside world
-EXPOSE 80
+# Expose port 4000 (or any other port your server listens to)
+EXPOSE 4000
 
-# Command to run Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start the Node.js server
+CMD ["node", "dist/my-angular-project/server/server.mjs"]
